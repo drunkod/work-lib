@@ -16,10 +16,10 @@
     {
       packages.${system}.default = pkgs.stdenv.mkDerivation rec {
         pname = "antigravity";
-        version = "1.11.3";
+        version = "1.11.5";
 
         src = pkgs.fetchurl {
-          url = "https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/1.11.3-6583016683339776/linux-x64/Antigravity.tar.gz";
+          url = "https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/1.11.5-5234145629700096/linux-x64/Antigravity.tar.gz";
           sha256 = "sha256-Al2lEvl5mnFU4sx1vAkIIBOCwazy6DePnaI1y4SlYVs=";
         };
 
