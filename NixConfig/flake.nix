@@ -1,12 +1,16 @@
 {
-  description = "Kiro, Chromium, and VSCode wrappers for OAuth flow";
+  description = "Kiro, Chromium, VSCode, and Antigravity wrappers for OAuth flow";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/3de8f8d73e35724bf9abef41f1bdbedda1e14a31";
     nixpkgs-kiro.url = "github:NixOS/nixpkgs/nixos-unstable";
+    antigravity = {
+      url = "path:../antigravity";  # or "github:user/antigravity-flake" if published
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, nixpkgs-kiro }:
+  outputs = { self, nixpkgs, nixpkgs-kiro, antigravity }:
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs {
@@ -39,10 +43,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ $# -eq 0 ]]; then
+  echo "Usage: xdg-open <url>" >&2
+  exit 1
+fi
+
 if [[ "$1" == kiro://* ]]; then
   echo "[chromium xdg-open] Opening Kiro link: $1" >&2
   unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY
-  exec ${pkgs-kiro.kiro}/bin/kiro --verbose --disable-gpu --no-sandbox --open-url "$1"
+  exec ${pkgs-kiro.kiro}/bin/kiro --disable-gpu --no-sandbox --open-url "$1"
+else
+  echo "[chromium xdg-open] Falling back to default handler: $1" >&2
+  exec ${pkgs.xdg-utils}/bin/xdg-open "$@"
 fi
 EOF
             chmod +x $out/bin/xdg-open
@@ -54,7 +66,7 @@ EOF
               --unset XDG_CURRENT_DESKTOP \
               --unset DESKTOP_SESSION \
               --unset GIO_LAUNCHED_DESKTOP_FILE_PID \
-              --add-flags "--new-window --no-sandbox --verbose"
+              --add-flags "--new-window --no-sandbox"
           '';
 
           meta = {
@@ -95,7 +107,7 @@ EOF
               --unset XDG_CURRENT_DESKTOP \
               --unset DESKTOP_SESSION \
               --unset GIO_LAUNCHED_DESKTOP_FILE_PID \
-              --add-flags "--verbose"
+              --add-flags "--disable-gpu --no-sandbox"
           '';
 
           meta = {
@@ -135,12 +147,54 @@ EOF
               --set BROWSER "$out/bin/xdg-open" \
               --unset XDG_CURRENT_DESKTOP \
               --unset DESKTOP_SESSION \
-              --unset GIO_LAUNCHED_DESKTOP_FILE_PID
+              --unset GIO_LAUNCHED_DESKTOP_FILE_PID \
+              --add-flags "--disable-gpu --no-sandbox"
           '';
 
           meta = {
             description = "VSCode with chromium as default browser and git support";
             mainProgram = "code";
+          };
+        };
+
+        # Package 4: Antigravity wrapper with custom xdg-open
+        antigravity-wrapped = pkgs.stdenv.mkDerivation {
+          pname = "antigravity-wrapped";
+          version = antigravity.packages.${system}.default.version or "unknown";
+
+          dontUnpack = true;
+          dontBuild = true;
+
+          nativeBuildInputs = [ pkgs.makeWrapper ];
+
+          installPhase = ''
+            mkdir -p $out/bin
+
+            # Create custom xdg-open for antigravity
+            cat > $out/bin/xdg-open <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY
+
+echo "[antigravity xdg-open] Opening browser: $1" >&2
+exec ${self.packages.${system}.chromium-wrapped}/bin/chromium "$@"
+EOF
+            chmod +x $out/bin/xdg-open
+
+            # Wrap Antigravity
+            makeWrapper ${antigravity.packages.${system}.default}/bin/antigravity $out/bin/antigravity \
+              --prefix PATH : "$out/bin:${pkgs.git}/bin:${pkgs.openssh}/bin:${pkgs.gnupg}/bin" \
+              --set BROWSER "$out/bin/xdg-open" \
+              --unset XDG_CURRENT_DESKTOP \
+              --unset DESKTOP_SESSION \
+              --unset GIO_LAUNCHED_DESKTOP_FILE_PID \
+              --add-flags "--disable-gpu --no-sandbox"
+          '';
+
+          meta = {
+            description = "Antigravity with custom OAuth-aware browser launcher";
+            mainProgram = "antigravity";
           };
         };
 
@@ -163,6 +217,11 @@ EOF
         vscode = {
           type = "app";
           program = "${self.packages.${system}.vscode-wrapped}/bin/code";
+        };
+
+        antigravity = {
+          type = "app";
+          program = "${self.packages.${system}.antigravity-wrapped}/bin/antigravity";
         };
         
         default = self.apps.${system}.kiro;

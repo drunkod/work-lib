@@ -1,5 +1,22 @@
 {
   "nodes": {
+    "antigravity": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1,
+        "narHash": "sha256-RgbHZDFzrVsn7STZsMxtzdLmofhzXS+BPXkDBJTOUvs=",
+        "path": "../antigravity",
+        "type": "path"
+      },
+      "original": {
+        "path": "../antigravity",
+        "type": "path"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1761999846,
@@ -34,6 +51,7 @@
     },
     "root": {
       "inputs": {
+        "antigravity": "antigravity",
         "nixpkgs": "nixpkgs",
         "nixpkgs-kiro": "nixpkgs-kiro"
       }
