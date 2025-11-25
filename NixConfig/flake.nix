@@ -5,7 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/3de8f8d73e35724bf9abef41f1bdbedda1e14a31";
     nixpkgs-kiro.url = "github:NixOS/nixpkgs/nixos-unstable";
     antigravity = {
-      url = "path:../antigravity";  # or "github:user/antigravity-flake" if published
+      url = "path:./../antigravity";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
