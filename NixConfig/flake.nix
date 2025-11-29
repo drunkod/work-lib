@@ -21,6 +21,35 @@
         inherit system;
         config.allowUnfree = true;
       };
+      
+      # Shared xdg-open script that preserves proxy for non-OAuth URLs
+      makeXdgOpen = name: ''
+        cat > $out/bin/xdg-open <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+URL="''${1:-}"
+
+if [[ -z "$URL" ]]; then
+  echo "Usage: xdg-open <url>" >&2
+  exit 1
+fi
+
+# Handle kiro:// protocol (OAuth callback)
+if [[ "$URL" == kiro://* ]]; then
+  echo "[${name} xdg-open] OAuth callback detected: $URL" >&2
+  # Unset proxy for OAuth callback to localhost
+  unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
+  exec ${unstable.kiro}/bin/kiro --disable-gpu --no-sandbox --open-url "$URL"
+fi
+
+# For regular URLs, open in chromium (proxy settings inherited from environment)
+echo "[${name} xdg-open] Opening in browser: $URL" >&2
+exec ${self.packages.${system}.chromium-wrapped}/bin/chromium "$URL"
+EOF
+        chmod +x $out/bin/xdg-open
+      '';
+      
     in
     {
       packages.${system} = {
@@ -50,7 +79,8 @@ fi
 
 if [[ "$1" == kiro://* ]]; then
   echo "[chromium xdg-open] Opening Kiro link: $1" >&2
-  unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY
+  # Only unset proxy for OAuth callbacks
+  unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
   exec ${unstable.kiro}/bin/kiro --disable-gpu --no-sandbox --open-url "$1"
 else
   echo "[chromium xdg-open] Falling back to default handler: $1" >&2
@@ -88,17 +118,7 @@ EOF
           installPhase = ''
             mkdir -p $out/bin
 
-            # Create custom xdg-open for kiro
-            cat > $out/bin/xdg-open <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-
-unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY
-
-echo "[kiro xdg-open] Opening browser: $1" >&2
-exec ${self.packages.${system}.chromium-wrapped}/bin/chromium "$@"
-EOF
-            chmod +x $out/bin/xdg-open
+            ${makeXdgOpen "kiro"}
 
             # Wrap Kiro
             makeWrapper ${unstable.kiro}/bin/kiro $out/bin/kiro \
@@ -129,17 +149,7 @@ EOF
           installPhase = ''
             mkdir -p $out/bin
 
-            # Create custom xdg-open for vscode
-            cat > $out/bin/xdg-open <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-
-unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY
-
-echo "[vscode xdg-open] Opening browser: $1" >&2
-exec ${self.packages.${system}.chromium-wrapped}/bin/chromium "$@"
-EOF
-            chmod +x $out/bin/xdg-open
+            ${makeXdgOpen "vscode"}
 
             # Wrap VSCode with git and other dev tools in PATH
             makeWrapper ${pkgs.vscode}/bin/code $out/bin/code \
@@ -170,17 +180,7 @@ EOF
           installPhase = ''
             mkdir -p $out/bin
 
-            # Create custom xdg-open for antigravity
-            cat > $out/bin/xdg-open <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-
-unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY
-
-echo "[antigravity xdg-open] Opening browser: $1" >&2
-exec ${self.packages.${system}.chromium-wrapped}/bin/chromium "$@"
-EOF
-            chmod +x $out/bin/xdg-open
+            ${makeXdgOpen "antigravity"}
 
             # Wrap Antigravity
             makeWrapper ${antigravity.packages.${system}.default}/bin/antigravity $out/bin/antigravity \
@@ -211,17 +211,7 @@ EOF
           installPhase = ''
             mkdir -p $out/bin
 
-            # Create custom xdg-open for windsurf
-            cat > $out/bin/xdg-open <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-
-unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY
-
-echo "[windsurf xdg-open] Opening browser: $1" >&2
-exec ${self.packages.${system}.chromium-wrapped}/bin/chromium "$@"
-EOF
-            chmod +x $out/bin/xdg-open
+            ${makeXdgOpen "windsurf"}
 
             # Wrap Windsurf
             makeWrapper ${unstable.windsurf}/bin/windsurf $out/bin/windsurf \
